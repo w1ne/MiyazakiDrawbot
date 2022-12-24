@@ -4,12 +4,11 @@ import numpy as np
 import potrace
 import serial
 import time
-
+import argparse
 
 class Piture:
-    def __init__(self, filepath):
-        self.img = Image.open(filepath)
-        self.img = np.array(self.img)
+    def __init__(self, image):
+        self.img = np.array(image)
         self.heights, self.width, self.channels = self.img.shape
 
     # convert to gray scale
@@ -30,36 +29,47 @@ class Gcode:
         self.ratio = self.x_max / max(picture.width, picture.heights)
         self.picture = picture
 
+        # gcode parameters
+        self.gcode_homing_command = "$H"
+        self.gcode_pen_up = "M05 S0"
+        self.gcode_pen_down = "M03 S100"
+        self.gcode_pre = "G21"
+        self.gcode_post = self.gcode_homing_command
+        self.gcode_move_line_no_tool = "G0"
+        self.gcode_move_line = "G1"
+        self.gcode_set_feedrate = "G1 F12000.0"
+        self.gcode_coord = "X%.4f Y%.4f"
+
     # Generate Gcode
     def gen_gcode(self):
         print("Generating gcode...")
         bmp = potrace.Bitmap(self.picture.img)
         path = bmp.trace()
-        self.gcode.append(gcode_homing_command)  # go home
-        self.gcode.append(gcode_set_feedrate)    # feedrate needs to be set once (modal command)
-        self.gcode.append(gcode_pre)
-        self.gcode.append(gcode_pen_up)  # make sure pen is up
+        self.gcode.append(self.gcode_homing_command)  # go home
+        self.gcode.append(self.gcode_set_feedrate)    # feedrate needs to be set once (modal command)
+        self.gcode.append(self.gcode_pre)
+        self.gcode.append(self.gcode_pen_up)  # make sure pen is up
         for curve in path:
-            self.gcode.append(gcode_pen_up)
+            self.gcode.append(self.gcode_pen_up)
             self.gcode.append(
-                gcode_move_line_no_tool
+                self.gcode_move_line_no_tool
                 + " "
-                + gcode_coord
+                + self.gcode_coord
                 % (curve.start_point.x * self.ratio, curve.start_point.y * self.ratio)
             )  # Move to the starting point for a curve
-            self.gcode.append(gcode_pen_down)
+            self.gcode.append(self.gcode_pen_down)
             for segment in curve:
                 if segment.is_corner:
                     self.gcode.append(
-                        gcode_move_line
+                        self.gcode_move_line
                         + " "
-                        + gcode_coord
+                        + self.gcode_coord
                         % (segment.c.x * self.ratio, segment.c.y * self.ratio)
                     )  # Move to corner start point
                     self.gcode.append(
-                        gcode_move_line
+                        self.gcode_move_line
                         + " "
-                        + gcode_coord
+                        + self.gcode_coord
                         % (
                             segment.end_point.x * self.ratio,
                             segment.end_point.y * self.ratio,
@@ -67,16 +77,16 @@ class Gcode:
                     )  # Move to corner end point
                 else:
                     self.gcode.append(
-                        gcode_move_line
+                        self.gcode_move_line
                         + " "
-                        + gcode_coord
+                        + self.gcode_coord
                         % (
                             segment.end_point.x * self.ratio,
                             segment.end_point.y * self.ratio,
                         )
                     )  # segment of bezier curve
-        self.gcode.append(gcode_pen_up)
-        self.gcode.append(gcode_post)
+        self.gcode.append(self.gcode_pen_up)
+        self.gcode.append(self.gcode_post)
         return self.gcode
 
     # Export Gcode
@@ -103,28 +113,51 @@ class Gcode:
 
 
 if __name__ == "__main__":
-    # image to process path and gcode output path
-    input_path = "input/download.jpeg"
-    output_name = "out/" + input_path.split("/")[1].split(".")[0]
-    # gcode parameters
-    gcode_homing_command = "$H"
-    gcode_pen_up = "M05 S0"
-    gcode_pen_down = "M03 S100"
-    gcode_pre = "G21"
-    gcode_post = gcode_homing_command
-    gcode_move_line_no_tool = "G0"
-    gcode_move_line = "G1"
-    gcode_set_feedrate = "G1 F12000.0"
-    gcode_coord = "X%.4f Y%.4f"
-    # drawing maachine scaling parameters
+    # parse command line arguments, input image path, output gcode path, UART port, baud rate
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument(# input image path  
+        "-i",
+        "--input",
+        help="input image path",    
+        default="input/download.jpeg",  # default input image path  
+    )
+    parser.add_argument(    # output gcode path
+        "-o",
+        "--output",
+        help="output gcode path", 
+        default="out/output_gcode.txt",   # default output gcode path
+    )
+    parser.add_argument(    # UART port
+        "-p",
+        "--port",   
+        help="serial port",
+        default="/dev/ttyUSB0",   # default UART port
+    )  
+    parser.add_argument(    # baud rate
+        "-b",
+        "--baud",   
+        help="baud rate",   
+        default=115200,   # default baud rate
+    )   
+    args = parser.parse_args()
+
+    # input
+    input_path = args.input
+    output_name = args.output
+    serial_port = args.port
+    baud_rate = args.baud
+
+    # drawing machine scaling parameters
     x_max = 200
     y_max = 200
 
     # image processing
-    pic = Piture(input_path)
+    image = Image.open(input_path)
+    pic = Piture(image)
     pic.gray_scale()
     gcode = Gcode(pic, x_max, y_max)
     gcode.gen_gcode()
     gcode.save_gcode(output_name)
-    gcode.send_gcode("/dev/ttyUSB0", 115200)
+    gcode.send_gcode(serial_port, baud_rate)
 
