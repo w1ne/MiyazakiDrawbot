@@ -31,8 +31,9 @@ class Gcode:
 
         # gcode parameters
         self.gcode_homing_command = "$H"
-        self.gcode_pen_up = "M05 S0"
-        self.gcode_pen_down = "M03 S100"
+        self.gcode_servo_off = "M05"
+        self.gcode_pen_up = "M03 S15"
+        self.gcode_pen_down = "M03 S50"
         self.gcode_pre = "G21"
         self.gcode_post = self.gcode_homing_command
         self.gcode_move_line_no_tool = "G0"
@@ -86,6 +87,7 @@ class Gcode:
                         )
                     )  # segment of bezier curve
         self.gcode.append(self.gcode_pen_up)
+        self.gcode.append(self.gcode_servo_off) 
         self.gcode.append(self.gcode_post)
         return self.gcode
 
