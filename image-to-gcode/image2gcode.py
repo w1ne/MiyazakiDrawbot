@@ -16,7 +16,7 @@ class Piture:
         print("RBG to gray scale conversion...")
         PILimage = Image.fromarray(np.uint8(self.img)).convert("RGB")
         PILimage = PILimage.convert("L")
-        self.img = np.array(PILimage)
+        self.img = np.array(PILimage).astype(bool)
         return self.img
 
 
@@ -56,7 +56,7 @@ class Gcode:
                 self.gcode_move_line_no_tool
                 + " "
                 + self.gcode_coord
-                % (curve.start_point.x * self.ratio, curve.start_point.y * self.ratio)
+                % (curve.start_point[0] * self.ratio, curve.start_point[1] * self.ratio)
             )  # Move to the starting point for a curve
             self.gcode.append(self.gcode_pen_down)
             for segment in curve:
@@ -65,15 +65,15 @@ class Gcode:
                         self.gcode_move_line
                         + " "
                         + self.gcode_coord
-                        % (segment.c.x * self.ratio, segment.c.y * self.ratio)
+                        % (segment.c[0] * self.ratio, segment.c[1] * self.ratio)
                     )  # Move to corner start point
                     self.gcode.append(
                         self.gcode_move_line
                         + " "
                         + self.gcode_coord
                         % (
-                            segment.end_point.x * self.ratio,
-                            segment.end_point.y * self.ratio,
+                            segment.end_point[0] * self.ratio,
+                            segment.end_point[1] * self.ratio,
                         )
                     )  # Move to corner end point
                 else:
@@ -82,8 +82,8 @@ class Gcode:
                         + " "
                         + self.gcode_coord
                         % (
-                            segment.end_point.x * self.ratio,
-                            segment.end_point.y * self.ratio,
+                            segment.end_point[0] * self.ratio,
+                            segment.end_point[1] * self.ratio,
                         )
                     )  # segment of bezier curve
         self.gcode.append(self.gcode_pen_up)

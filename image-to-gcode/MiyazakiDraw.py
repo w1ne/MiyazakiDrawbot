@@ -20,7 +20,7 @@ class Voice:
 def recognize_voice():
     # obtain audio from the microphone
     r = sr.Recognizer()
-    with sr.Microphone() as source:
+    with sr.Microphone(device_index=1) as source:
         print("Say something!")
         r.pause_threshold = 1
         audio = r.listen(source)
